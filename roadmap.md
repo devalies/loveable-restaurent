@@ -1,0 +1,5 @@
+- [x] Establish the restaurant design, supplied logo, and Cloud content storage.
+- [ ] Build the public restaurant page and interactive sections.
+- [ ] Build staff sign-in and content management.
+- [ ] Verify desktop/mobile and interactions.
+- [ ] Assign the restaurant owner's admin role — blocked until the owner account is identified.
