@@ -1,24 +1,104 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute } from '@tanstack/react-router';
+import { useState, useEffect } from 'react';
+import { ArrowRight, ArrowUpRight, ChevronLeft, ChevronRight, MapPin, Menu as MenuIcon, Phone, Star, X, Instagram } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { restaurant as r } from '@/lib/restaurant';
+import { getRestaurantContent } from '@/lib/restaurant.functions';
+import { supabase } from '@/integrations/supabase/client';
+import logo from '@/assets/usk-logo.png.asset.json';
+import hero from '@/assets/pizza-hero.jpg';
+import interior from '@/assets/interior.jpg';
+import wings from '@/assets/wings.jpg';
+import pizza from '@/assets/pizza-menu.jpg';
 
-// No head() here: the home route inherits title/description/og/twitter from
-// __root.tsx, and ships no og:image so serve-time hosting can inject the
-// project's social preview (explicit og:image or latest screenshot).
-export const Route = createFileRoute("/")({
-  component: Index,
+export const Route = createFileRoute('/')({
+  loader: () => getRestaurantContent(),
+  head: () => ({ meta: [
+    { title: 'Usk Bar & Grill | Bar & Grill in Usk, Washington' },
+    { name: 'description', content: 'Visit Usk Bar & Grill in Usk, Washington for pizza, comfort food, drinks, friendly service, and a relaxed local atmosphere.' },
+    { property: 'og:title', content: 'Usk Bar & Grill | Bar & Grill in Usk, Washington' },
+    { property: 'og:description', content: 'Pizza, comfort food, drinks, and a welcoming small-town atmosphere in Usk, Washington.' },
+    { property: 'og:type', content: 'website' },
+    { name: 'twitter:card', content: 'summary_large_image' },
+  ] }),
+  component: Home,
 });
 
-// IMPORTANT: Replace this placeholder. See ./README.md for routing conventions.
-function Index() {
-  return (
-    <div
-      className="flex min-h-screen items-center justify-center"
-      style={{ backgroundColor: "#fcfbf8" }}
-    >
-      <img
-        data-lovable-blank-page-placeholder="REMOVE_THIS"
-        src="https://cdn.gpteng.co/blank-app-v1.svg"
-        alt="Your app will live here!"
-      />
-    </div>
-  );
+const directions = r.directions;
+const nav = [['Home','#home'],['Menu','#menu'],['Gallery','#gallery'],['Reviews','#reviews'],['Contact','#contact']];
+const fallbackGallery = [
+  { id: 'pizza', title: 'Pizza night', category: 'Food', image_url: pizza, alt_text: 'Illustrative photograph of a freshly baked pizza' },
+  { id: 'inside', title: 'The neighborhood table', category: 'Atmosphere', image_url: interior, alt_text: 'Illustrative photograph of a warm neighborhood bar interior' },
+  { id: 'wings', title: 'Comfort food favorites', category: 'Food', image_url: wings, alt_text: 'Illustrative photograph of boneless wings' },
+  { id: 'hero', title: 'A slice worth sharing', category: 'Pizza', image_url: hero, alt_text: 'Illustrative photograph of pizza on a table' },
+];
+function Home() {
+  const data = Route.useLoaderData();
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+  const [category, setCategory] = useState('All');
+  const [galleryIndex, setGalleryIndex] = useState(0);
+  const [lightbox, setLightbox] = useState<number | null>(null);
+  const [reviewIndex, setReviewIndex] = useState(0);
+  const [sending, setSending] = useState(false);
+  const [feedback, setFeedback] = useState('');
+  const gallery = data.gallery.length ? data.gallery : fallbackGallery;
+  const filtered = category === 'All' ? data.items : data.items.filter(item => item.category_id === data.categories.find(c => c.name === category)?.id);
+  useEffect(() => { const onScroll = () => setScrolled(window.scrollY > 30); window.addEventListener('scroll', onScroll, { passive: true }); return () => window.removeEventListener('scroll', onScroll); }, []);
+  useEffect(() => { if (lightbox === null) return; const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setLightbox(null); if (e.key === 'ArrowRight') setLightbox(i => i === null ? 0 : (i+1)%gallery.length); if (e.key === 'ArrowLeft') setLightbox(i => i === null ? 0 : (i-1+gallery.length)%gallery.length); }; window.addEventListener('keydown', onKey); return () => window.removeEventListener('keydown', onKey); }, [lightbox, gallery.length]);
+  async function submitContact(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault(); setSending(true); setFeedback('');
+    const form = e.currentTarget; const f = new FormData(form);
+    const { error } = await supabase.from('contact_messages').insert({ name: String(f.get('name')).trim(), email: String(f.get('email')).trim(), phone: String(f.get('phone')).trim(), message: String(f.get('message')).trim() });
+    setSending(false);
+    if (error) setFeedback('Your message could not be sent. Please call us instead.');
+    else { setFeedback('Thanks for reaching out. Your message has been sent.'); form.reset(); }
+  }
+  const shownGallery = Array.from({length: Math.min(3,gallery.length)}, (_,i) => gallery[(galleryIndex+i)%gallery.length]);
+  return <main>
+    <header className={`fixed inset-x-0 top-0 z-40 transition-colors duration-300 ${scrolled || mobileOpen ? 'bg-background border-b border-border' : 'bg-background/40'}`}>
+      <div className="section-wrap flex h-20 items-center justify-between gap-6">
+        <a href="#home" aria-label="Usk Bar & Grill home" className="shrink-0"><img src={logo.url} alt="Usk Bar & Grill" className="h-16 w-16 object-contain" /></a>
+        <nav aria-label="Main navigation" className="hidden items-center gap-8 lg:flex">{nav.map(([label,href]) => <a key={href} href={href} className="text-xs font-bold uppercase tracking-widest text-foreground/85 hover:text-primary">{label}</a>)}</nav>
+        <Button asChild variant="hero" className="hidden h-10 px-5 lg:inline-flex"><a href={r.phoneHref}><Phone /> Call Now</a></Button>
+        <Button variant="ghost" size="icon" className="lg:hidden" aria-label={mobileOpen ? 'Close menu':'Open menu'} onClick={() => setMobileOpen(!mobileOpen)}>{mobileOpen ? <X/>:<MenuIcon/>}</Button>
+      </div>
+      {mobileOpen && <nav aria-label="Mobile navigation" className="section-wrap flex flex-col gap-1 border-t border-border pb-5 lg:hidden">{nav.map(([label,href]) => <a key={href} href={href} onClick={() => setMobileOpen(false)} className="py-3 text-sm font-bold uppercase tracking-widest">{label}</a>)}<a href={r.phoneHref} className="py-3 text-primary">Call {r.phone}</a></nav>}
+    </header>
+    <section id="home" className="relative flex min-h-[690px] items-center overflow-hidden pt-20 max-md:min-h-[760px] lg:h-[90vh] lg:max-h-[950px]">
+      <img src={hero} alt="Illustrative photograph of a freshly baked pizza in a welcoming bar setting" className="absolute inset-0 h-full w-full object-cover object-[62%_center]" width={1536} height={1024} />
+      <div className="image-scrim absolute inset-0"/><div className="hero-vignette absolute inset-0"/>
+      <div className="section-wrap relative z-10 pb-12 pt-10">
+        <div className="mb-7 flex items-center gap-3"><span className="h-px w-9 bg-primary"/><span className="eyebrow !text-primary">USK, WASHINGTON</span></div>
+        <h1 className="display-title max-w-3xl text-5xl text-hero-foreground sm:text-6xl lg:text-[76px]">Good Food.<br/>Good Drinks.<br/><em className="text-primary">Good Times.</em></h1>
+        <p className="mt-7 max-w-lg text-base leading-8 text-hero-foreground/85 sm:text-lg">Your local bar & grill serving delicious pizza, comfort food, drinks, and a welcoming small-town atmosphere.</p>
+        <div className="mt-9 flex flex-wrap gap-3"><Button asChild variant="hero" size="lg"><a href="#menu">View Our Menu <ArrowRight/></a></Button><Button asChild variant="heroOutline" size="lg"><a href={directions} target="_blank" rel="noreferrer">Get Directions <ArrowUpRight/></a></Button><Button asChild variant="heroOutline" size="lg"><a href={r.phoneHref}><Phone/> Call Us</a></Button></div>
+        <div className="mt-14 flex items-center gap-4 text-sm text-hero-foreground/75"><span className="text-primary">★★★★★</span><span>{r.rating} on Google · {r.reviews} reviews</span></div>
+      </div>
+      <a href="#about" className="absolute bottom-8 right-8 z-10 hidden text-xs uppercase tracking-widest text-hero-foreground/70 lg:block">Scroll to explore ↓</a>
+    </section>
+    <section id="about" className="py-20 lg:py-28"><div className="section-wrap grid items-center gap-12 lg:grid-cols-2 lg:gap-20">
+      <div className="relative"><img src={interior} alt="Illustrative photograph of a warm bar and grill interior, not a photograph of Usk Bar & Grill" loading="lazy" width={1280} height={960} className="aspect-[5/4] w-full object-cover"/><div className="absolute -bottom-5 right-0 bg-primary px-6 py-4 text-primary-foreground sm:right-[-20px]"><span className="font-display text-3xl font-bold">4.6 ★</span><span className="ml-3 text-xs font-bold uppercase tracking-wide">Google Rating</span></div></div>
+      <div><p className="eyebrow">A PLACE TO GATHER</p><h2 className="display-title mt-4 text-4xl sm:text-5xl">Welcome to<br/><span className="text-primary">Usk Bar & Grill</span></h2><p className="mt-7 text-base leading-8 text-muted-foreground">Good food tastes even better when everyone feels at home. Pull up a chair for pizza, boneless wings, and drinks in the easygoing spirit of a local bar and grill.</p><p className="mt-4 text-base leading-8 text-muted-foreground">Bring the family, meet a friend, or make a game of it with pool and foosball. Around here, good company is always on the menu.</p><div className="mt-8 flex flex-wrap gap-8 border-t border-border pt-7"><div><b className="font-display text-2xl text-primary">149+</b><p className="mt-1 text-xs uppercase tracking-wide text-muted-foreground">Google reviews</p></div><div><b className="font-display text-2xl text-primary">$10–20</b><p className="mt-1 text-xs uppercase tracking-wide text-muted-foreground">Per person</p></div></div></div>
+    </div></section>
+    <section className="border-y border-border bg-surface py-8"><div className="section-wrap grid grid-cols-2 gap-8 text-center md:grid-cols-4">{[['4.6 ★','Google Rating'],['$10–20','Per Person'],['149+','Customer Reviews'],['Local','Usk, Washington']].map(([value,label]) => <div key={label}><div className="font-display text-2xl font-bold text-primary sm:text-3xl">{value}</div><div className="mt-1 text-xs uppercase tracking-widest text-muted-foreground">{label}</div></div>)}</div></section>
+    <section id="menu" className="scroll-mt-16 py-20 lg:py-28"><div className="section-wrap"><div className="flex flex-wrap items-end justify-between gap-5"><div><p className="eyebrow">FROM OUR KITCHEN</p><h2 className="display-title mt-3 text-4xl sm:text-5xl">Something for <em className="text-primary">everyone.</em></h2></div><p className="max-w-sm text-sm leading-7 text-muted-foreground">These are known favorites. Please call for the latest menu, descriptions, and prices.</p></div>
+      <div className="mt-10 flex flex-wrap gap-2" role="group" aria-label="Menu categories">{['All',...data.categories.map(c => c.name)].map(name => <Button key={name} variant={category === name ? 'hero' : 'outline'} onClick={() => setCategory(name)} className="min-w-20">{name}</Button>)}</div>
+      {filtered.length ? <div className="mt-8 grid gap-5 md:grid-cols-2 lg:grid-cols-3">{filtered.map(item => { const image = item.image_url || (item.name.includes('Wing') ? wings : item.name.includes('Ring') ? interior : pizza); return <article key={item.id} className="overflow-hidden rounded-sm border border-border bg-card"><img src={image} alt={`Illustrative photograph for ${item.name}`} loading="lazy" width={1024} height={768} className="aspect-[4/3] w-full object-cover"/><div className="p-6"><div className="flex items-start justify-between gap-3"><h3 className="font-display text-2xl font-bold">{item.name}</h3>{item.price !== null && <span className="font-bold text-primary">${item.price.toFixed(2)}</span>}</div>{item.description && <p className="mt-3 text-sm leading-6 text-muted-foreground">{item.description}</p>}{item.price === null && <p className="mt-3 text-sm text-muted-foreground">Call for current pricing</p>}</div></article>; })}</div> : <p className="mt-10 text-muted-foreground">No menu items in this category yet.</p>}
+      <div className="mt-9 text-center"><Button asChild variant="heroOutline" size="lg"><a href={r.phoneHref}>Questions about the menu? Call us <ArrowRight/></a></Button></div>
+    </div></section>
+    <section id="gallery" className="scroll-mt-16 bg-surface py-20 lg:py-28"><div className="section-wrap"><div className="flex items-end justify-between gap-5"><div><p className="eyebrow">A LOOK INSIDE</p><h2 className="display-title mt-3 text-4xl sm:text-5xl">Good things, <em className="text-primary">shared.</em></h2></div><div className="flex gap-2"><Button variant="outline" size="icon" aria-label="Previous gallery images" onClick={() => setGalleryIndex((galleryIndex-1+gallery.length)%gallery.length)}><ChevronLeft/></Button><Button variant="outline" size="icon" aria-label="Next gallery images" onClick={() => setGalleryIndex((galleryIndex+1)%gallery.length)}><ChevronRight/></Button></div></div><p className="mt-4 text-xs text-muted-foreground">Illustrative food and atmosphere photography; not photographs of the restaurant.</p>
+      <div className="mt-9 grid gap-4 md:grid-cols-2 lg:grid-cols-3">{shownGallery.map((item,i) => <Button key={`${item.id}-${i}`} variant="ghost" className={`group relative !h-auto !w-full !p-0 overflow-hidden !rounded-sm ${i > 0 ? 'hidden md:block' : ''} ${i > 1 ? '!hidden lg:!block' : ''}`} onClick={() => setLightbox((galleryIndex+i)%gallery.length)} aria-label={`Open ${item.title} photo`}><img src={item.image_url} alt={item.alt_text} loading="lazy" className="aspect-[4/5] w-full object-cover transition-transform duration-500 group-hover:scale-105"/><span className="image-caption absolute inset-0 flex flex-col items-start justify-end p-6 text-left"><span className="eyebrow">{item.category}</span><span className="mt-1 font-display text-2xl text-hero-foreground">{item.title}</span></span></Button>)}</div>
+      <div className="mt-6 flex justify-center gap-2">{gallery.map((item,i) => <Button key={item.id} variant="ghost" size="icon" className="h-5 w-5" aria-label={`Go to gallery image ${i+1}`} onClick={() => setGalleryIndex(i)}><span className={`h-1.5 w-1.5 rounded-full ${i===galleryIndex?'bg-primary':'bg-muted-foreground'}`}/></Button>)}</div>
+    </div></section>
+    <section id="reviews" className="scroll-mt-16 py-20 lg:py-28"><div className="section-wrap"><div className="flex flex-wrap items-end justify-between gap-5"><div><p className="eyebrow">KIND WORDS FROM OUR GUESTS</p><h2 className="display-title mt-3 text-4xl sm:text-5xl">The word <em className="text-primary">around town.</em></h2></div><div className="flex gap-2"><Button variant="outline" size="icon" aria-label="Previous review" onClick={() => setReviewIndex((reviewIndex-1+data.reviews.length)%data.reviews.length)}><ChevronLeft/></Button><Button variant="outline" size="icon" aria-label="Next review" onClick={() => setReviewIndex((reviewIndex+1)%data.reviews.length)}><ChevronRight/></Button></div></div>
+      <div className="mt-9 grid gap-4 md:grid-cols-2 lg:grid-cols-3">{Array.from({length:Math.min(3,data.reviews.length)},(_,i) => data.reviews[(reviewIndex+i)%data.reviews.length]).map((review,i) => <article key={`${review.id}-${i}`} className={`flex min-h-64 flex-col border border-border bg-card p-7 ${i > 0 ? 'hidden md:flex' : ''} ${i > 1 ? '!hidden lg:!flex' : ''}`}><div className="flex gap-1 text-primary" aria-label={`${review.rating} stars`}>{Array.from({length:review.rating},(_,j)=><Star key={j} size={15} fill="currentColor"/>)}</div><blockquote className="mt-5 flex-1 font-display text-xl leading-relaxed">“{review.review_text}”</blockquote><div className="mt-7 border-t border-border pt-5"><p className="text-sm font-bold">{review.customer_name}</p><p className="mt-1 text-xs text-muted-foreground">{review.source || 'Customer review'}</p></div></article>)}</div>
+      <div className="mt-6 flex justify-center gap-2">{data.reviews.map((review,i) => <Button key={review.id} variant="ghost" size="icon" className="h-5 w-5" aria-label={`Go to review ${i+1}`} onClick={()=>setReviewIndex(i)}><span className={`h-1.5 w-1.5 rounded-full ${i===reviewIndex?'bg-primary':'bg-muted-foreground'}`}/></Button>)}</div>
+    </div></section>
+    <section id="contact" className="scroll-mt-16 border-t border-border bg-surface py-20 lg:py-28"><div className="section-wrap grid gap-12 lg:grid-cols-2 lg:gap-20"><div><p className="eyebrow">FIND US IN USK</p><h2 className="display-title mt-3 text-4xl sm:text-5xl">Come <em className="text-primary">see us.</em></h2><p className="mt-6 max-w-md text-base leading-8 text-muted-foreground">Good food and good company are just around the corner. We’d love to see you.</p><div className="mt-9 space-y-6"><div className="flex gap-4"><MapPin className="mt-1 shrink-0 text-primary"/><div><p className="font-bold">Find us</p><p className="mt-1 text-muted-foreground">112 5th St, Usk, WA 99180</p></div></div><div className="flex gap-4"><Phone className="mt-1 shrink-0 text-primary"/><div><p className="font-bold">Give us a call</p><a href={r.phoneHref} className="mt-1 block text-muted-foreground hover:text-primary">{r.phone}</a></div></div></div><div className="mt-9 flex flex-wrap gap-3"><Button asChild variant="hero" size="lg"><a href={directions} target="_blank" rel="noreferrer">Get Directions <ArrowUpRight/></a></Button><Button asChild variant="heroOutline" size="lg"><a href={r.phoneHref}><Phone/> Call Us</a></Button></div><div className="mt-10 overflow-hidden border border-border"><iframe title="Map showing Usk Bar & Grill in Usk, Washington" src="https://maps.google.com/maps?q=Usk%20Bar%20%26%20Grill%2C%20112%205th%20St%2C%20Usk%2C%20WA%2099180&t=&z=14&ie=UTF8&iwloc=&output=embed" className="h-64 w-full" loading="lazy" referrerPolicy="no-referrer-when-downgrade"/></div></div>
+      <div><p className="eyebrow">SAY HELLO</p><h3 className="display-title mt-3 text-3xl">Drop us a line.</h3><form onSubmit={submitContact} className="mt-8 space-y-5"><div className="grid gap-5 sm:grid-cols-2"><label className="block text-sm font-semibold">Name *<input name="name" required maxLength={120} className="mt-2 w-full border border-border bg-background px-4 py-3 outline-none focus:border-primary" placeholder="Your name"/></label><label className="block text-sm font-semibold">Email *<input name="email" type="email" required maxLength={255} className="mt-2 w-full border border-border bg-background px-4 py-3 outline-none focus:border-primary" placeholder="Your email"/></label></div><label className="block text-sm font-semibold">Phone<input name="phone" type="tel" maxLength={30} className="mt-2 w-full border border-border bg-background px-4 py-3 outline-none focus:border-primary" placeholder="Optional"/></label><label className="block text-sm font-semibold">Message *<textarea name="message" required maxLength={4000} rows={6} className="mt-2 w-full resize-y border border-border bg-background px-4 py-3 outline-none focus:border-primary" placeholder="How can we help?"/></label><Button variant="hero" size="lg" disabled={sending}>{sending ? 'Sending…' : 'Send Message'} <ArrowRight/></Button>{feedback && <p role="status" className="text-sm text-primary">{feedback}</p>}</form></div>
+    </div></section>
+    <footer className="border-t border-border py-12"><div className="section-wrap"><div className="flex flex-wrap items-start justify-between gap-9"><div><img src={logo.url} alt="Usk Bar & Grill" className="h-24 w-24 object-contain"/><p className="mt-3 max-w-xs text-sm text-muted-foreground">Good food. Good drinks. Good times. Right here in Usk, Washington.</p></div><nav aria-label="Footer navigation" className="flex flex-wrap gap-x-6 gap-y-3 text-sm">{nav.map(([label,href])=><a key={href} href={href} className="hover:text-primary">{label}</a>)}</nav><div className="text-sm text-muted-foreground"><p>{r.address}</p><a href={r.phoneHref} className="mt-2 block hover:text-primary">{r.phone}</a><a href={r.facebook} target="_blank" rel="noreferrer" className="mt-3 inline-flex items-center gap-2 hover:text-primary">Facebook <ArrowUpRight size={14}/></a></div></div><div className="mt-10 border-t border-border pt-6 text-xs text-muted-foreground">© {new Date().getFullYear()} Usk Bar & Grill. All rights reserved.</div></div></footer>
+    {lightbox !== null && <div role="dialog" aria-modal="true" aria-label="Gallery image" className="fixed inset-0 z-50 flex items-center justify-center bg-background/95 p-4" onClick={() => setLightbox(null)}><Button variant="ghost" size="icon" className="absolute right-5 top-5" aria-label="Close image" onClick={() => setLightbox(null)}><X/></Button><Button variant="outline" size="icon" className="absolute left-3 z-10" aria-label="Previous image" onClick={e => {e.stopPropagation();setLightbox((lightbox-1+gallery.length)%gallery.length);}}><ChevronLeft/></Button><div className="max-w-5xl" onClick={e=>e.stopPropagation()}><img src={gallery[lightbox].image_url} alt={gallery[lightbox].alt_text} className="max-h-[75vh] max-w-full object-contain"/><p className="mt-3 text-center text-sm text-muted-foreground">{gallery[lightbox].title}</p></div><Button variant="outline" size="icon" className="absolute right-3 z-10" aria-label="Next image" onClick={e=>{e.stopPropagation();setLightbox((lightbox+1)%gallery.length);}}><ChevronRight/></Button></div>}
+  </main>;
 }
