@@ -1,0 +1,3 @@
+CREATE POLICY "Contact submission safeguards" ON public.contact_messages AS RESTRICTIVE FOR INSERT TO anon, authenticated WITH CHECK (status = 'New' AND email ~* '^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$' AND length(coalesce(phone,'')) <= 30);
+CREATE FUNCTION public.limit_contact_submissions() RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$ BEGIN IF (SELECT count(*) FROM public.contact_messages WHERE lower(email) = lower(NEW.email) AND created_at > now() - interval '1 hour') >= 3 THEN RAISE EXCEPTION 'Please wait before sending another message'; END IF; RETURN NEW; END $$;
+CREATE TRIGGER contact_submission_limit BEFORE INSERT ON public.contact_messages FOR EACH ROW EXECUTE FUNCTION public.limit_contact_submissions();
