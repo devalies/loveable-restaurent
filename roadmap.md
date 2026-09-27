@@ -2,4 +2,5 @@
 - [x] Build the public restaurant page and interactive sections.
 - [x] Build staff sign-in and content management.
 - [x] Verify desktop/mobile, contact form, gallery, filtering, and staff access.
+- [x] Refine typography, review scrolling, contact alignment, animations, and small-screen controls; verify in browser.
 - [ ] Assign the restaurant owner's admin role — blocked until the owner account is identified.
