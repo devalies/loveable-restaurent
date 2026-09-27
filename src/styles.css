@@ -4,8 +4,8 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
-  --font-display: "Playfair Display", Georgia, serif;
-  --font-sans: "Manrope", sans-serif;
+  --font-display: "Bricolage Grotesque", sans-serif;
+  --font-sans: "DM Sans", sans-serif;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -59,8 +59,12 @@
 @utility section-wrap { width: min(100% - 2.5rem, 1200px); margin-inline: auto; }
 @utility eyebrow { font-size: .7rem; font-weight: 800; letter-spacing: .18em; text-transform: uppercase; color: var(--primary); }
 @utility display-title { font-family: var(--font-display); font-weight: 700; line-height: 1.12; }
+@utility section-reveal { animation: section-rise .7s both; }
+@keyframes section-rise { from { opacity: 0; transform: translateY(22px); } to { opacity: 1; transform: translateY(0); } }
+.review-track { scrollbar-width: thin; scrollbar-color: var(--primary) var(--surface); touch-action: pan-x pan-y; }
+.review-track.is-dragging { scroll-snap-type: none; cursor: grabbing; user-select: none; }
 @utility image-scrim { background: linear-gradient(90deg, oklch(0.11 0.01 60 / 91%) 0%, oklch(0.11 0.01 60 / 69%) 42%, oklch(0.11 0.01 60 / 13%) 100%); }
 @utility hero-vignette { background: linear-gradient(0deg, var(--background), transparent 24%); }
 @utility image-caption { background: linear-gradient(0deg, oklch(0.12 0.01 60 / 85%), transparent 65%); }
 @media (max-width: 700px) { .image-scrim { background: linear-gradient(90deg, oklch(0.11 0.01 60 / 82%), oklch(0.11 0.01 60 / 46%)); } }
-@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; scroll-behavior: auto !important; } }
